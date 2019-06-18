@@ -28,41 +28,42 @@ app.config.from_object(__name__)
 @app.before_request
 def before_request():
 	try:
+		r = rethinkdb.RethinkDB()
 		g.rdb_conn = r.connect(host=RDB_HOST, port=RDB_PORT, db=TODO_DB)
 	except RqlDriverError:
 		abort(503, 'No database connection could be established.')
 
 @app.teardown_request
-def teardown_request():
+def teardown_request(exception):
 	try:
 		g.rdb_conn.close()
 	except AttributeError:
 		pass
 
-@app.route("/todos", method=['GET'])
+@app.route("/todos", methods=['GET'])
 def get_todos():
 	selection = list(r.table('todos').run(g.rdb_conn))
 	return json.dumps(selection)
 
-@app.route("/todos", method=['POST'])
+@app.route("/todos", methods=['POST'])
 def new_todo():
 	inserted = r.table('todos').insert(request.json).run(g.rdb_conn)	
 	return jsonify(id=inserted['generated_keys'][0])
 
-@app.route("/todos/<string:todo_id>", method=['GET'])
-def get_todos(todo_id):
+@app.route("/todos/<string:todo_id>", methods=['GET'])
+def get_todo(todo_id):
 	todo = r.table('todos').get(todo_id).run(g.rdb_conn)
 	return json.dumps(todo)
 
-@app.route("/todos/<string:todo_id>", method=['PUT'])
+@app.route("/todos/<string:todo_id>", methods=['PUT'])
 def update_todo(todo_id):
 	return jsonify(r.table('todos').get(todo_id).replace(request.json).run(g.rdb_conn))
 
-@app.route("/todos/<string:todo_id>", method=['PATCH'])
+@app.route("/todos/<string:todo_id>", methods=['PATCH'])
 def patch_todo(todo_id):
 	return jsonify(r.table('todos').get(todo_id).update(request.json).run(g.rdb_conn))
 
-@app.route("/todos/<string:todo_id>", method=['DELETE'])
+@app.route("/todos/<string:todo_id>", methods=['DELETE'])
 def delete_todo(todo_id):
 	return jsonify(r.table('todos').get(todo_id).delete().run(g.rdb_conn))
 
@@ -73,9 +74,9 @@ def show_todos():
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Run the Flask todo app')
 	parser.add_argument('--setup', dest='run_setup', action='store_true')
-	args = parser.parse_args
+	args = parser.parse_args()
 	if args.run_setup:
 		dbSetup()
 	else:
 		app.run(debug=True)
-		
+
